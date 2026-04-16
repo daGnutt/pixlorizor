@@ -256,7 +256,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         compositeLayers();
         if (glitterbombs) {
           const [sx, sy] = toScreenPos(px, py);
-          explode(sx, sy, 10, [activeColor]);
+          explode(sx, sy, Math.max(1, Math.round(10 * zoom / 16)), [activeColor]);
         }
         break;
       }
@@ -268,13 +268,14 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       }
       default: break;
     }
-  }, [activeTool, activeColor, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
+  }, [activeTool, activeColor, zoom, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
 
   // ─── Bresenham segment ────────────────────────────────────────────────────
 
   const drawBresenhamSegment = useCallback((
     from: [number, number],
     to: [number, number],
+    emitGlitter = true,
   ) => {
     let [x0, y0] = from;
     const [x1, y1] = to;
@@ -285,9 +286,9 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
         if (activeTool === 'pencil') {
           setLayerPixel(activeColor, x0, y0);
-          if (glitterbombs) {
+          if (emitGlitter && glitterbombs) {
             const [sx2, sy2] = toScreenPos(x0, y0);
-            explode(sx2, sy2, 5, [activeColor]);
+            explode(sx2, sy2, Math.max(1, Math.round(5 * zoom / 16)), [activeColor]);
           }
         } else if (activeTool === 'eraser') {
           clearLayerPixel(activeColor, x0, y0);
@@ -299,7 +300,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       if (e2 < dx) { err += dx; y0 += sy; }
     }
     compositeLayers();
-  }, [activeTool, activeColor, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
+  }, [activeTool, activeColor, zoom, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
 
   // ─── Mouse events ─────────────────────────────────────────────────────────
 
@@ -325,7 +326,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       compositeLayers();
       if (glitterbombs) {
         const [sx, sy] = toScreenPos(px, py);
-        explode(sx, sy, 28, [activeColor]);
+        explode(sx, sy, Math.max(8, Math.round(28 * zoom / 16)), [activeColor]);
       }
       const layers = paletteRef.current.map(color => ({
         color,
@@ -374,7 +375,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         if (layer) layer.data.set(snap.data);
         else layersRef.current.set(color, new ImageData(new Uint8ClampedArray(snap.data), snap.width, snap.height));
       }
-      drawBresenhamSegment(shiftAnchor.current, [px, py]);
+      drawBresenhamSegment(shiftAnchor.current, [px, py], false); // no glitter during preview
       lastPixel.current = [px, py];
       if (px >= 0 && px < width && py >= 0 && py < height) {
         setPaintGlow({ px, py });
@@ -417,6 +418,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 
   const onMouseUp = useCallback(() => {
     if (!isDrawing.current) return;
+    const committedAnchor = shiftAnchor.current;
+    const committedEnd = lastPixel.current;
     isDrawing.current = false;
     lastPixel.current = null;
     secondLastPixel.current = null;
@@ -429,7 +432,21 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     }));
     history.snapshot(layers, paletteRef.current);
     onSnapshot?.();
-  }, [history, width, height, onSnapshot]);
+    // Emit glitter burst along the committed shift-line
+    if (glitterbombs && committedAnchor && committedEnd) {
+      const dx = committedEnd[0] - committedAnchor[0];
+      const dy = committedEnd[1] - committedAnchor[1];
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const steps = Math.max(1, Math.min(5, Math.floor(len / 4)));
+      for (let i = 0; i <= steps; i++) {
+        const t = steps > 0 ? i / steps : 0;
+        const bx = Math.round(committedAnchor[0] + dx * t);
+        const by = Math.round(committedAnchor[1] + dy * t);
+        const [sx, sy] = toScreenPos(bx, by);
+        explode(sx, sy, Math.max(1, Math.round(8 * zoom / 16)), [activeColor]);
+      }
+    }
+  }, [history, width, height, glitterbombs, zoom, activeColor, toScreenPos, onSnapshot]);
 
   useEffect(() => {
     window.addEventListener('mouseup', onMouseUp);
