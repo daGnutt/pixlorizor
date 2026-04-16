@@ -1,3 +1,4 @@
+import React from 'react';
 import { explode, GLITTER_COLORS } from '../utils/particles';
 
 interface Props {

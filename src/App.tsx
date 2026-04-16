@@ -5,6 +5,7 @@ import PixelCanvas, { type CanvasHandle } from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ColorPicker from './components/ColorPicker';
 import TopBar from './components/TopBar';
+import ParticleOverlay from './components/ParticleOverlay';
 import { useHistory } from './hooks/useHistory';
 import { exportPng } from './utils/exportPng';
 
@@ -128,6 +129,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col w-full h-full">
+      <ParticleOverlay />
       <TopBar
         canUndo={history.canUndo()}
         canRedo={history.canRedo()}
