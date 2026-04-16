@@ -1,5 +1,3 @@
-import { useRef } from 'react';
-
 interface Props {
   activeColor: string;
   palette: string[];
@@ -7,7 +5,6 @@ interface Props {
   onAddToPalette: () => void;
   onPaletteColorClick: (color: string) => void;
   onRemoveFromPalette: (index: number) => void;
-  onPaletteColorEdit: (index: number, newColor: string) => void;
 }
 
 export default function ColorPicker({
@@ -17,13 +14,10 @@ export default function ColorPicker({
   onAddToPalette,
   onPaletteColorClick,
   onRemoveFromPalette,
-  onPaletteColorEdit,
 }: Props) {
-  const editInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
   return (
     <div className="flex flex-col gap-3 p-3 bg-[var(--bg-panel)] border-t border-[var(--border-color)]">
-      {/* Active color */}
+      {/* Active color — click to open colour picker and edit the selected palette chip */}
       <div className="flex items-center gap-3">
         <label className="text-xs text-[var(--text-muted)] shrink-0">Color</label>
         <input
@@ -31,12 +25,12 @@ export default function ColorPicker({
           value={activeColor}
           onChange={e => onColorChange(e.target.value)}
           className="color-input-glow w-10 h-10 rounded cursor-pointer border-2 border-[var(--border-color)] bg-transparent"
-          title="Active color"
+          title="Click to edit active colour"
         />
         <span className="text-xs font-mono text-[var(--text-primary)] uppercase">{activeColor}</span>
         <button
           onClick={onAddToPalette}
-          title="Add to palette"
+          title="Add a new random colour to the palette"
           className="ml-auto text-xs px-2 py-1 bg-[var(--bg-button)] hover:bg-[var(--bg-button-hover)] rounded text-[var(--text-muted)] transition-colors"
         >
           + Palette
@@ -49,21 +43,12 @@ export default function ColorPicker({
           {palette.map((color, i) => (
             <div key={i} className="relative group">
               <button
-                title={`${color} — click to select, double-click to edit`}
+                title={`${color} — click to select`}
                 onClick={() => onPaletteColorClick(color)}
-                onDoubleClick={() => editInputRefs.current[i]?.click()}
                 onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
                 className={`swatch-btn w-7 h-7 rounded border-2 block
-                  ${color === activeColor ? 'border-white' : 'border-transparent'}`}
+                  ${color === activeColor ? 'border-white' : 'border-[var(--border-color)]'}`}
                 style={{ background: color, ['--swatch-color' as string]: color }}
-              />
-              {/* Hidden colour picker for in-place editing */}
-              <input
-                ref={el => { editInputRefs.current[i] = el; }}
-                type="color"
-                defaultValue={color}
-                className="sr-only"
-                onChange={e => onPaletteColorEdit(i, e.target.value)}
               />
               <button
                 title="Remove from palette"

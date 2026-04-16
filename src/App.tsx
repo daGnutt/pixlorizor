@@ -242,13 +242,20 @@ export default function App() {
         activeColor={state.activeColor}
         palette={state.palette}
         onColorChange={c => {
-          dispatch({ type: 'SET_COLOR', color: c });
-          if (!state.palette.includes(c)) dispatch({ type: 'ADD_TO_PALETTE', color: c });
+          const paletteIndex = state.palette.indexOf(state.activeColor);
+          if (paletteIndex !== -1) {
+            handlePaletteColorEdit(paletteIndex, c);
+          } else {
+            dispatch({ type: 'SET_COLOR', color: c });
+          }
         }}
-        onAddToPalette={() => dispatch({ type: 'ADD_TO_PALETTE', color: state.activeColor })}
+        onAddToPalette={() => {
+          const randomColor = '#' + Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
+          dispatch({ type: 'ADD_TO_PALETTE', color: randomColor });
+          dispatch({ type: 'SET_COLOR', color: randomColor });
+        }}
         onPaletteColorClick={c => dispatch({ type: 'SET_COLOR', color: c })}
         onRemoveFromPalette={handleRemoveFromPalette}
-        onPaletteColorEdit={handlePaletteColorEdit}
       />
 
       {showNewDialog && (
