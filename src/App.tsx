@@ -187,7 +187,10 @@ export default function App() {
       />
 
       {showNewDialog && (
-        <NewCanvasDialog onConfirm={handleNewCanvas} />
+        <NewCanvasDialog
+          onConfirm={handleNewCanvas}
+          onCancel={state.canvasSize ? () => setShowNewDialog(false) : undefined}
+        />
       )}
     </div>
   );

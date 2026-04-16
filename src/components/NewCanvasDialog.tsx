@@ -9,9 +9,10 @@ const PRESETS: CanvasSize[] = [
 
 interface Props {
   onConfirm: (size: CanvasSize) => void;
+  onCancel?: () => void;
 }
 
-export default function NewCanvasDialog({ onConfirm }: Props) {
+export default function NewCanvasDialog({ onConfirm, onCancel }: Props) {
   const [w, setW] = useState(32);
   const [h, setH] = useState(32);
 
@@ -26,7 +27,6 @@ export default function NewCanvasDialog({ onConfirm }: Props) {
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
       <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl p-8 w-80 shadow-2xl">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">New Canvas</h2>
-
         <p className="text-sm text-[var(--text-muted)] mb-3">Presets</p>
         <div className="flex gap-2 mb-6">
           {PRESETS.map(p => (
@@ -69,12 +69,23 @@ export default function NewCanvasDialog({ onConfirm }: Props) {
               />
             </label>
           </div>
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded font-medium transition-colors"
-          >
-            Create Canvas
-          </button>
+          <div className={`flex gap-3 ${onCancel ? 'flex-row' : ''}`}>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 py-2.5 bg-[var(--bg-button)] hover:bg-[var(--bg-button-hover)] text-[var(--text-primary)] rounded font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              className={`py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded font-medium transition-colors ${onCancel ? 'flex-1' : 'w-full'}`}
+            >
+              Create Canvas
+            </button>
+          </div>
         </form>
       </div>
     </div>
