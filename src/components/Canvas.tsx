@@ -143,7 +143,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       case 'eraser': applyEraser(ctx, px, py); break;
       default: break;
     }
-  }, [activeTool, activeColor, width, height]);
+  }, [activeTool, activeColor, width, height, glitterbombs]);
 
   const drawBresenhamSegment = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -172,7 +172,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       if (e2 > -dy) { err -= dy; x0 += sx; }
       if (e2 < dx) { err += dx; y0 += sy; }
     }
-  }, [activeTool, activeColor, width, height, toScreenPos]);
+  }, [activeTool, activeColor, width, height, glitterbombs, toScreenPos]);
 
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -205,7 +205,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     lastPixel.current = [px, py];
     setPaintGlow({ px, py });
     drawAt(px, py);
-  }, [activeTool, activeColor, palette, width, height, getPixelCoords, drawAt, toScreenPos, history, onColorPicked, onSnapshot]);
+  }, [activeTool, activeColor, palette, width, height, glitterbombs, getPixelCoords, drawAt, toScreenPos, history, onColorPicked, onSnapshot]);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
