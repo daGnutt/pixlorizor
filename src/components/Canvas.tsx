@@ -14,6 +14,7 @@ interface Props {
   zoom: number;
   activeTool: Tool;
   activeColor: string;
+  palette: string[];
   showGrid: boolean;
   history: HistoryHandle;
   onColorPicked: (color: string) => void;
@@ -28,7 +29,7 @@ export interface CanvasHandle {
 }
 
 const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
-  { width, height, zoom, activeTool, activeColor, showGrid, history, onColorPicked, onSnapshot },
+  { width, height, zoom, activeTool, activeColor, palette, showGrid, history, onColorPicked, onSnapshot },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,8 +49,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
-      history.snapshot(canvas);
-      onSnapshot?.();
+      // Snapshot is taken by App.tsx after the palette is extracted
     },
     replaceColor: (oldHex: string, newHex: string) => {
       const canvas = canvasRef.current;
@@ -65,8 +65,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         }
       }
       ctx.putImageData(imageData, 0, 0);
-      history.snapshot(canvas);
-      onSnapshot?.();
+      // Snapshot is taken by App.tsx with the updated palette
     },
     eraseColor: (hex: string) => {
       const canvas = canvasRef.current;
@@ -81,8 +80,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         }
       }
       ctx.putImageData(imageData, 0, 0);
-      history.snapshot(canvas);
-      onSnapshot?.();
+      // Snapshot is taken by App.tsx with the updated palette
     },
   }));
 
@@ -163,7 +161,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 
     if (activeTool === 'fill') {
       applyFill(ctx, px, py, activeColor, width, height);
-      history.snapshot(canvas);
+      history.snapshot(canvas, palette);
       onSnapshot?.();
       return;
     }
@@ -181,7 +179,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     lastPixel.current = [px, py];
     setPaintGlow({ px, py });
     drawAt(px, py);
-  }, [activeTool, activeColor, width, height, getPixelCoords, drawAt, history, onColorPicked, onSnapshot]);
+  }, [activeTool, activeColor, palette, width, height, getPixelCoords, drawAt, history, onColorPicked, onSnapshot]);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
@@ -235,8 +233,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     waitingForEntry.current = false;
     setPaintGlow(null);
     const canvas = canvasRef.current;
-    if (canvas) { history.snapshot(canvas); onSnapshot?.(); }
-  }, [history, onSnapshot]);
+    if (canvas) { history.snapshot(canvas, palette); onSnapshot?.(); }
+  }, [history, palette, onSnapshot]);
 
   // Stop drawing when mouse button is released anywhere outside the canvas
   useEffect(() => {

@@ -68,11 +68,19 @@ export default function App() {
         if (e.key === 'z') {
           e.preventDefault();
           const canvas = canvasRef.current?.getCanvas();
-          if (canvas) { history.undo(canvas); forceHistoryRefresh(); }
+          if (canvas) {
+            const palette = history.undo(canvas);
+            if (palette) dispatch({ type: 'SET_PALETTE', palette });
+            forceHistoryRefresh();
+          }
         } else if (e.key === 'y' || (e.shiftKey && e.key === 'z')) {
           e.preventDefault();
           const canvas = canvasRef.current?.getCanvas();
-          if (canvas) { history.redo(canvas); forceHistoryRefresh(); }
+          if (canvas) {
+            const palette = history.redo(canvas);
+            if (palette) dispatch({ type: 'SET_PALETTE', palette });
+            forceHistoryRefresh();
+          }
         }
         return;
       }
@@ -98,18 +106,26 @@ export default function App() {
     setCanvasKey(k => k + 1);
     setTimeout(() => {
       const canvas = canvasRef.current?.getCanvas();
-      if (canvas) history.snapshot(canvas);
+      if (canvas) history.snapshot(canvas, DEFAULT_PALETTE);
     }, 0);
   }, [history]);
 
   const handleUndo = useCallback(() => {
     const canvas = canvasRef.current?.getCanvas();
-    if (canvas) { history.undo(canvas); forceHistoryRefresh(); }
+    if (canvas) {
+      const palette = history.undo(canvas);
+      if (palette) dispatch({ type: 'SET_PALETTE', palette });
+      forceHistoryRefresh();
+    }
   }, [history, forceHistoryRefresh]);
 
   const handleRedo = useCallback(() => {
     const canvas = canvasRef.current?.getCanvas();
-    if (canvas) { history.redo(canvas); forceHistoryRefresh(); }
+    if (canvas) {
+      const palette = history.redo(canvas);
+      if (palette) dispatch({ type: 'SET_PALETTE', palette });
+      forceHistoryRefresh();
+    }
   }, [history, forceHistoryRefresh]);
 
   const handleExport = useCallback(() => {
@@ -119,15 +135,22 @@ export default function App() {
 
   const handleRemoveFromPalette = useCallback((index: number) => {
     const color = state.palette[index];
+    const newPalette = state.palette.filter((_, i) => i !== index);
     canvasRef.current?.eraseColor(color);
     dispatch({ type: 'REMOVE_FROM_PALETTE', index });
-  }, [state.palette]);
+    const canvas = canvasRef.current?.getCanvas();
+    if (canvas) { history.snapshot(canvas, newPalette); forceHistoryRefresh(); }
+  }, [state.palette, history, forceHistoryRefresh]);
 
   const handlePaletteColorEdit = useCallback((index: number, newColor: string) => {
     const oldColor = state.palette[index];
+    if (newColor === oldColor) return;
+    const newPalette = state.palette.map((c, i) => i === index ? newColor : c);
     canvasRef.current?.replaceColor(oldColor, newColor);
     dispatch({ type: 'UPDATE_PALETTE_COLOR', index, oldColor, newColor });
-  }, [state.palette]);
+    const canvas = canvasRef.current?.getCanvas();
+    if (canvas) { history.snapshot(canvas, newPalette); forceHistoryRefresh(); }
+  }, [state.palette, history, forceHistoryRefresh]);
 
   const handleImportClick = useCallback(() => {
     importInputRef.current?.click();
@@ -152,6 +175,7 @@ export default function App() {
           const palette = extractPalette(canvas);
           dispatch({ type: 'SET_PALETTE', palette });
           dispatch({ type: 'SET_COLOR', color: palette[0] ?? DEFAULT_PALETTE[0] });
+          history.snapshot(canvas, palette);
         }
       }, 0);
     };
@@ -201,6 +225,7 @@ export default function App() {
               zoom={clampedZoom}
               activeTool={state.activeTool}
               activeColor={state.activeColor}
+              palette={state.palette}
               showGrid={state.showGrid}
               history={history}
               onColorPicked={color => dispatch({ type: 'SET_COLOR', color })}
