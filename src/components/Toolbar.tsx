@@ -18,13 +18,26 @@ const EraserIcon = () => (
   </svg>
 );
 
+const PipetteIcon = () => (
+  <svg viewBox="0 0 20 20" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Pipette body */}
+    <rect x="10.5" y="3" width="3" height="7" rx="1" transform="rotate(45 10.5 3)" fill="currentColor" opacity="0.85" />
+    {/* Pipette tip */}
+    <line x1="5.5" y1="14.5" x2="3" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    {/* Dropper bulb */}
+    <circle cx="14.5" cy="4.5" r="2.2" fill="currentColor" opacity="0.7" />
+    {/* Drop */}
+    <path d="M4.5 15.5 Q3.5 16.8 4.5 17.5 Q5.5 16.8 4.5 15.5Z" fill="currentColor" opacity="0.9" />
+  </svg>
+);
+
 type ToolDef = { id: Tool; label: string; icon: React.ReactNode; key: string };
 
 const TOOLS: ToolDef[] = [
   { id: 'pencil', label: 'Pencil', icon: '✏️', key: 'P' },
   { id: 'eraser', label: 'Eraser', icon: <EraserIcon />, key: 'E' },
   { id: 'fill',   label: 'Fill',   icon: '🪣', key: 'F' },
-  { id: 'picker', label: 'Picker', icon: '💧', key: 'C' },
+  { id: 'picker', label: 'Picker', icon: <PipetteIcon />, key: 'C' },
 ];
 
 export default function Toolbar({
