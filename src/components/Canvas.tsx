@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import type { Tool } from '../types';
 import { applyPencil } from '../tools/pencil';
 import { applyEraser } from '../tools/eraser';
@@ -31,6 +31,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
   const gridRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const lastPixel = useRef<[number, number] | null>(null);
+  const [paintGlow, setPaintGlow] = useState<{ px: number; py: number } | null>(null);
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => canvasRef.current,
@@ -112,6 +113,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 
     isDrawing.current = true;
     lastPixel.current = [px, py];
+    setPaintGlow({ px, py });
     drawAt(px, py);
   }, [activeTool, activeColor, width, height, getPixelCoords, drawAt, history, onColorPicked, onSnapshot]);
 
@@ -141,12 +143,14 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       }
     }
     lastPixel.current = [px, py];
+    setPaintGlow({ px, py });
   }, [activeTool, activeColor, width, height, getPixelCoords]);
 
   const onMouseUp = useCallback(() => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
     lastPixel.current = null;
+    setPaintGlow(null);
     const canvas = canvasRef.current;
     if (canvas) { history.snapshot(canvas); onSnapshot?.(); }
   }, [history, onSnapshot]);
@@ -204,6 +208,18 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
           pointerEvents: 'none',
         }}
       />
+      {/* Paint halo — glowing overlay on the pixel being painted */}
+      {paintGlow && (activeTool === 'pencil' || activeTool === 'eraser') && (
+        <div
+          className="paint-halo"
+          style={{
+            left: paintGlow.px * zoom,
+            top: paintGlow.py * zoom,
+            width: zoom,
+            height: zoom,
+          }}
+        />
+      )}
     </div>
   );
 });

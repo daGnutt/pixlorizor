@@ -14,7 +14,7 @@ export default function TopBar({ canUndo, canRedo, onNew, onUndo, onRedo, onExpo
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors
+      className={`topbar-btn px-3 py-1.5 rounded text-sm font-medium
         ${disabled
           ? 'text-[var(--text-subtle)] cursor-not-allowed'
           : 'text-[var(--text-primary)] hover:bg-[var(--bg-button)]'}`}

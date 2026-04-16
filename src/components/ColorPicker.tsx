@@ -24,7 +24,7 @@ export default function ColorPicker({
           type="color"
           value={activeColor}
           onChange={e => onColorChange(e.target.value)}
-          className="w-10 h-10 rounded cursor-pointer border-2 border-[var(--border-color)] bg-transparent"
+          className="color-input-glow w-10 h-10 rounded cursor-pointer border-2 border-[var(--border-color)] bg-transparent"
           title="Active color"
         />
         <span className="text-xs font-mono text-[var(--text-primary)] uppercase">{activeColor}</span>
@@ -46,9 +46,9 @@ export default function ColorPicker({
                 title={color}
                 onClick={() => onPaletteColorClick(color)}
                 onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
-                className={`w-7 h-7 rounded border-2 transition-colors block
-                  ${color === activeColor ? 'border-white' : 'border-transparent hover:border-[var(--text-muted)]'}`}
-                style={{ background: color }}
+                className={`swatch-btn w-7 h-7 rounded border-2 block
+                  ${color === activeColor ? 'border-white' : 'border-transparent'}`}
+                style={{ background: color, ['--swatch-color' as string]: color }}
               />
               <button
                 title="Remove from palette"

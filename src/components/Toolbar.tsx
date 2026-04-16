@@ -42,9 +42,9 @@ export default function Toolbar({
           key={t.id}
           title={`${t.label} (${t.key})`}
           onClick={() => onToolChange(t.id)}
-          className={`w-10 h-10 rounded text-lg transition-colors flex items-center justify-center
+          className={`tool-btn w-10 h-10 rounded text-lg flex items-center justify-center
             ${activeTool === t.id
-              ? 'bg-[var(--accent)] text-white'
+              ? 'tool-btn-active bg-[var(--accent)] text-white'
               : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:bg-[var(--bg-button-hover)]'}`}
         >
           {t.icon}
@@ -57,9 +57,9 @@ export default function Toolbar({
       <button
         title="Toggle grid (G)"
         onClick={onToggleGrid}
-        className={`w-10 h-10 rounded text-xs font-bold transition-colors
+        className={`tool-btn w-10 h-10 rounded text-xs font-bold
           ${showGrid
-            ? 'bg-[var(--accent)] text-white'
+            ? 'tool-btn-active bg-[var(--accent)] text-white'
             : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:bg-[var(--bg-button-hover)]'}`}
       >
         ⊞
