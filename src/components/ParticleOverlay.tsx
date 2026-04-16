@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { registerEmitter } from '../utils/particles';
 import type { Particle } from '../utils/particles';
 
+const MAX_PARTICLES = 800;
+
 function drawStar(ctx: CanvasRenderingContext2D, size: number) {
   ctx.beginPath();
   for (let i = 0; i < 5; i++) {
@@ -22,6 +24,7 @@ export default function ParticleOverlay() {
 
   const addParticles = useCallback((x: number, y: number, count: number, colors: string[]) => {
     for (let i = 0; i < count; i++) {
+      if (particlesRef.current.length >= MAX_PARTICLES) break;
       const angle = Math.random() * Math.PI * 2;
       const speed = 2.5 + Math.random() * 9;
       const life = 50 + Math.random() * 50;
