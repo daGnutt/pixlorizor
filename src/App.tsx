@@ -50,6 +50,7 @@ function reducer(state: AppState, action: AppAction): AppState {
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [showNewDialog, setShowNewDialog] = useState(true);
+  const [canvasKey, setCanvasKey] = useState(0);
   const [, setHistoryVersion] = useState(0);
   const canvasRef = useRef<CanvasHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -90,8 +91,10 @@ export default function App() {
 
   const handleNewCanvas = useCallback((size: CanvasSize) => {
     dispatch({ type: 'SET_CANVAS_SIZE', size });
+    dispatch({ type: 'SET_PALETTE', palette: DEFAULT_PALETTE });
     history.clear();
     setShowNewDialog(false);
+    setCanvasKey(k => k + 1);
     setTimeout(() => {
       const canvas = canvasRef.current?.getCanvas();
       if (canvas) history.snapshot(canvas);
@@ -189,6 +192,7 @@ export default function App() {
           <div className="min-w-full min-h-full flex items-center justify-center p-4">
           {state.canvasSize ? (
             <PixelCanvas
+              key={canvasKey}
               ref={canvasRef}
               width={state.canvasSize.width}
               height={state.canvasSize.height}
