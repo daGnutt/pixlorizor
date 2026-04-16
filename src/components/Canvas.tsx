@@ -37,6 +37,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
   const lastPixel = useRef<[number, number] | null>(null);
   const secondLastPixel = useRef<[number, number] | null>(null);
   const pendingEntryPixel = useRef<[number, number] | null>(null);
+  const waitingForEntry = useRef(false);
   const [paintGlow, setPaintGlow] = useState<{ px: number; py: number } | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -176,6 +177,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     isDrawing.current = true;
     secondLastPixel.current = null;
     pendingEntryPixel.current = null;
+    waitingForEntry.current = false;
     lastPixel.current = [px, py];
     setPaintGlow({ px, py });
     drawAt(px, py);
@@ -186,12 +188,17 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const [px, py] = getPixelCoords(e);
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    const last = lastPixel.current;
+
+    if (waitingForEntry.current) {
+      // Phase 1: first move after leaving — buffer as P1, wait for P2
+      pendingEntryPixel.current = [px, py];
+      waitingForEntry.current = false;
+      return;
+    }
 
     if (pendingEntryPixel.current) {
-      // We now have two positions inside the canvas: pendingEntryPixel and [px, py].
-      // Extrapolate backward from pendingEntryPixel in the direction (P1 → P2) reversed
-      // to find the entry edge pixel, then start the stroke from there.
+      // Phase 2: second move after leaving — P1 and P2 are from separate mousemove
+      // events so they are guaranteed to differ, giving a reliable entry direction.
       const P1 = pendingEntryPixel.current;
       const P2: [number, number] = [px, py];
       const entryEdge = findEdgeIntersection(
@@ -204,11 +211,14 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       pendingEntryPixel.current = null;
       secondLastPixel.current = P1;
       lastPixel.current = P2;
-    } else if (last) {
-      // Normal Bresenham stroke
-      drawBresenhamSegment(ctx, last, [px, py]);
-      secondLastPixel.current = last;
-      lastPixel.current = [px, py];
+    } else {
+      // Phase 3: normal Bresenham stroke
+      const last = lastPixel.current;
+      if (last) {
+        drawBresenhamSegment(ctx, last, [px, py]);
+        secondLastPixel.current = last;
+        lastPixel.current = [px, py];
+      }
     }
 
     if (px >= 0 && px < width && py >= 0 && py < height) {
@@ -222,6 +232,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     lastPixel.current = null;
     secondLastPixel.current = null;
     pendingEntryPixel.current = null;
+    waitingForEntry.current = false;
     setPaintGlow(null);
     const canvas = canvasRef.current;
     if (canvas) { history.snapshot(canvas); onSnapshot?.(); }
@@ -273,13 +284,6 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
-        onMouseEnter={(e) => {
-          if (!isDrawing.current) return;
-          const [px, py] = getPixelCoords(e);
-          lastPixel.current = null; // discard exit point — re-entry starts fresh
-          secondLastPixel.current = null;
-          pendingEntryPixel.current = [px, py];
-        }}
         onMouseLeave={(e) => {
           setPaintGlow(null);
           if (!isDrawing.current) return;
@@ -296,7 +300,6 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
               width, height,
             );
             drawBresenhamSegment(ctx, last, exitEdge);
-            lastPixel.current = exitEdge;
           } else if (last) {
             // Only one point known — use the exit event position as direction hint
             const [ex, ey] = getPixelCoords(e);
@@ -306,10 +309,10 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
               width, height,
             );
             drawBresenhamSegment(ctx, last, exitEdge);
-            lastPixel.current = exitEdge;
           }
           secondLastPixel.current = null;
           pendingEntryPixel.current = null;
+          waitingForEntry.current = true;
         }}
       />
       {/* Grid overlay canvas */}
