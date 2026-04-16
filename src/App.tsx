@@ -232,6 +232,7 @@ export default function App() {
               activeColor={state.activeColor}
               palette={state.palette}
               showGrid={state.showGrid}
+              glitterbombs={state.glitterbombs}
               history={history}
               onColorPicked={color => dispatch({ type: 'SET_COLOR', color })}
               onSnapshot={forceHistoryRefresh}
