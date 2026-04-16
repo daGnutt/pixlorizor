@@ -6,9 +6,11 @@ interface Props {
   activeTool: Tool;
   showGrid: boolean;
   zoom: number;
+  glitterbombs: boolean;
   onToolChange: (tool: Tool) => void;
   onToggleGrid: () => void;
   onZoomChange: (zoom: number) => void;
+  onToggleGlitterbombs: () => void;
 }
 
 const EraserIcon = () => (
@@ -48,32 +50,33 @@ export default function Toolbar({
   activeTool,
   showGrid,
   zoom,
+  glitterbombs,
   onToolChange,
   onToggleGrid,
   onZoomChange,
+  onToggleGlitterbombs,
 }: Props) {
   const zoomInputRef = useRef<HTMLInputElement>(null);
 
   const handleToolClick = (t: ToolDef, e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    explode(rect.left + rect.width / 2, rect.top + rect.height / 2, 32, TOOL_COLORS[t.id]);
+    if (glitterbombs) explode(rect.left + rect.width / 2, rect.top + rect.height / 2, 32, TOOL_COLORS[t.id]);
     onToolChange(t.id);
   };
 
   const handleGridToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    explode(rect.left + rect.width / 2, rect.top + rect.height / 2, 22, ['#7c5cfc', '#00d4ff', '#e94560', '#ffd700']);
+    if (glitterbombs) explode(rect.left + rect.width / 2, rect.top + rect.height / 2, 22, ['#7c5cfc', '#00d4ff', '#e94560', '#ffd700']);
     onToggleGrid();
   };
 
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newZoom = Number(e.target.value);
     const delta = Math.abs(newZoom - zoom);
-    if (delta > 0 && zoomInputRef.current) {
+    if (glitterbombs && delta > 0 && zoomInputRef.current) {
       const rect = zoomInputRef.current.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
-      // More particles for bigger zoom jumps; burst every tick while dragging
       const count = Math.min(8 + delta * 2, 50);
       explode(cx, cy, count, GLITTER_COLORS);
     }
@@ -112,7 +115,19 @@ export default function Toolbar({
 
       <hr className="w-8 border-[var(--border-color)] my-1" />
 
-      {/* Zoom */}
+      {/* Glitterbombs toggle */}
+      <button
+        title="Toggle glitterbombs"
+        onClick={onToggleGlitterbombs}
+        className={`tool-btn w-10 h-10 rounded text-lg
+          ${glitterbombs
+            ? 'tool-btn-active bg-[var(--accent)] text-white'
+            : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:bg-[var(--bg-button-hover)]'}`}
+      >
+        ✨
+      </button>
+
+      <hr className="w-8 border-[var(--border-color)] my-1" />
       <span className="text-xs text-[var(--text-muted)]">{zoom}×</span>
       <input
         ref={zoomInputRef}

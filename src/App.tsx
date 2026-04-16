@@ -19,6 +19,7 @@ const initialState: AppState = {
   palette: DEFAULT_PALETTE,
   showGrid: true,
   zoom: 16,
+  glitterbombs: true,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -42,6 +43,7 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'SET_PALETTE':
       return { ...state, palette: action.palette };
     case 'TOGGLE_GRID': return { ...state, showGrid: !state.showGrid };
+    case 'TOGGLE_GLITTERBOMBS': return { ...state, glitterbombs: !state.glitterbombs };
     case 'SET_ZOOM': return { ...state, zoom: action.zoom };
     default: return state;
   }
@@ -190,6 +192,7 @@ export default function App() {
       <TopBar
         canUndo={history.canUndo()}
         canRedo={history.canRedo()}
+        glitterbombs={state.glitterbombs}
         onNew={() => setShowNewDialog(true)}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -209,9 +212,11 @@ export default function App() {
           activeTool={state.activeTool}
           showGrid={state.showGrid}
           zoom={clampedZoom}
+          glitterbombs={state.glitterbombs}
           onToolChange={t => dispatch({ type: 'SET_TOOL', tool: t })}
           onToggleGrid={() => dispatch({ type: 'TOGGLE_GRID' })}
           onZoomChange={z => dispatch({ type: 'SET_ZOOM', zoom: z })}
+          onToggleGlitterbombs={() => dispatch({ type: 'TOGGLE_GLITTERBOMBS' })}
         />
 
         <div className="flex-1 overflow-auto bg-[var(--canvas-bg)]">
@@ -227,6 +232,7 @@ export default function App() {
               activeColor={state.activeColor}
               palette={state.palette}
               showGrid={state.showGrid}
+              glitterbombs={state.glitterbombs}
               history={history}
               onColorPicked={color => dispatch({ type: 'SET_COLOR', color })}
               onSnapshot={forceHistoryRefresh}
