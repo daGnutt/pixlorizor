@@ -113,21 +113,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     }
   }, [showGrid, width, height, zoom]);
 
-  // Snap (px, py) to the nearest 45°-aligned direction from anchor (ax, ay)
-  const constrainToStraightLine = useCallback((
-    ax: number, ay: number, px: number, py: number,
-  ): [number, number] => {
-    const dx = px - ax;
-    const dy = py - ay;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-    if (adx === 0 && ady === 0) return [px, py];
-    const angle = Math.atan2(ady, adx);
-    if (angle < Math.PI / 8) return [px, ay];                              // horizontal
-    if (angle > 3 * Math.PI / 8) return [ax, py];                         // vertical
-    const d = Math.min(adx, ady);                                          // 45° diagonal
-    return [ax + Math.sign(dx) * d, ay + Math.sign(dy) * d];
-  }, []);
+
 
   // Track Shift key; when pressed mid-stroke, anchor the straight-line start
   useEffect(() => {
@@ -266,16 +252,13 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
 
-    // Shift held — restore snapshot and draw a straight constrained line
+    // Shift held — restore snapshot and draw a straight line to current position
     if (isShiftHeld.current && shiftAnchor.current && workingSnapshot.current) {
       ctx.putImageData(workingSnapshot.current, 0, 0);
-      const [ex, ey] = constrainToStraightLine(
-        shiftAnchor.current[0], shiftAnchor.current[1], px, py,
-      );
-      drawBresenhamSegment(ctx, shiftAnchor.current, [ex, ey]);
-      lastPixel.current = [ex, ey];
-      if (ex >= 0 && ex < width && ey >= 0 && ey < height) {
-        setPaintGlow({ px: ex, py: ey });
+      drawBresenhamSegment(ctx, shiftAnchor.current, [px, py]);
+      lastPixel.current = [px, py];
+      if (px >= 0 && px < width && py >= 0 && py < height) {
+        setPaintGlow({ px, py });
       }
       return;
     }
@@ -315,7 +298,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     if (px >= 0 && px < width && py >= 0 && py < height) {
       setPaintGlow({ px, py });
     }
-  }, [width, height, getPixelCoords, drawBresenhamSegment, constrainToStraightLine]);
+  }, [width, height, getPixelCoords, drawBresenhamSegment]);
 
   const onMouseUp = useCallback(() => {
     if (!isDrawing.current) return;
