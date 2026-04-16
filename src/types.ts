@@ -14,6 +14,7 @@ export interface AppState {
   palette: string[];   // array of hex colors
   showGrid: boolean;
   zoom: number;        // 1..32
+  glitterbombs: boolean;
 }
 
 export type AppAction =
@@ -25,4 +26,5 @@ export type AppAction =
   | { type: 'UPDATE_PALETTE_COLOR'; index: number; oldColor: string; newColor: string }
   | { type: 'SET_PALETTE'; palette: string[] }
   | { type: 'TOGGLE_GRID' }
+  | { type: 'TOGGLE_GLITTERBOMBS' }
   | { type: 'SET_ZOOM'; zoom: number };

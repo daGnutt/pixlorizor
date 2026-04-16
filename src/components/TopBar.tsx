@@ -4,6 +4,7 @@ import { explode, GLITTER_COLORS } from '../utils/particles';
 interface Props {
   canUndo: boolean;
   canRedo: boolean;
+  glitterbombs: boolean;
   onNew: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -32,8 +33,9 @@ const PixelLogoIcon = () => (
   </svg>
 );
 
-export default function TopBar({ canUndo, canRedo, onNew, onUndo, onRedo, onExport, onImport }: Props) {
+export default function TopBar({ canUndo, canRedo, glitterbombs, onNew, onUndo, onRedo, onExport, onImport }: Props) {
   const handleLogoClick = (e: React.MouseEvent) => {
+    if (!glitterbombs) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     explode(rect.left + rect.width / 2, rect.top + rect.height / 2, 50, GLITTER_COLORS);
   };
