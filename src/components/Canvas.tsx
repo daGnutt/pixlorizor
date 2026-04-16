@@ -41,6 +41,9 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
   const secondLastPixel = useRef<[number, number] | null>(null);
   const pendingEntryPixel = useRef<[number, number] | null>(null);
   const waitingForEntry = useRef(false);
+  const isShiftHeld = useRef(false);
+  const shiftAnchor = useRef<[number, number] | null>(null);
+  const workingSnapshot = useRef<ImageData | null>(null);
   const [paintGlow, setPaintGlow] = useState<{ px: number; py: number } | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -109,6 +112,35 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       ctx.stroke();
     }
   }, [showGrid, width, height, zoom]);
+
+
+
+  // Track Shift key; when pressed mid-stroke, anchor the straight-line start
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift') return;
+      isShiftHeld.current = true;
+      if (isDrawing.current && lastPixel.current) {
+        shiftAnchor.current = lastPixel.current;
+        const canvas = canvasRef.current;
+        if (canvas) {
+          workingSnapshot.current = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+        }
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift') return;
+      isShiftHeld.current = false;
+      shiftAnchor.current = null;
+      workingSnapshot.current = null;
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
 
   const toScreenPos = useCallback((px: number, py: number): [number, number] => {
     const canvas = canvasRef.current;
@@ -203,6 +235,13 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     pendingEntryPixel.current = null;
     waitingForEntry.current = false;
     lastPixel.current = [px, py];
+    if (isShiftHeld.current) {
+      shiftAnchor.current = [px, py];
+      workingSnapshot.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } else {
+      shiftAnchor.current = null;
+      workingSnapshot.current = null;
+    }
     setPaintGlow({ px, py });
     drawAt(px, py);
   }, [activeTool, activeColor, palette, width, height, glitterbombs, getPixelCoords, drawAt, toScreenPos, history, onColorPicked, onSnapshot]);
@@ -212,6 +251,17 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const [px, py] = getPixelCoords(e);
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
+
+    // Shift held — restore snapshot and draw a straight line to current position
+    if (isShiftHeld.current && shiftAnchor.current && workingSnapshot.current) {
+      ctx.putImageData(workingSnapshot.current, 0, 0);
+      drawBresenhamSegment(ctx, shiftAnchor.current, [px, py]);
+      lastPixel.current = [px, py];
+      if (px >= 0 && px < width && py >= 0 && py < height) {
+        setPaintGlow({ px, py });
+      }
+      return;
+    }
 
     if (waitingForEntry.current) {
       // Phase 1: first move after leaving — buffer as P1, wait for P2
