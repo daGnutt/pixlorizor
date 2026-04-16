@@ -39,7 +39,6 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
   const layersRef = useRef<Map<string, ImageData>>(new Map());
   // Keep a ref to the current palette for use inside non-reactive callbacks
   const paletteRef = useRef<string[]>(palette);
-  useEffect(() => { paletteRef.current = palette; }, [palette]);
 
   const isDrawing = useRef(false);
   const lastPixel = useRef<[number, number] | null>(null);
@@ -82,6 +81,12 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     }
     ctx.putImageData(result, 0, 0);
   }, [width, height]);
+
+  // Sync palette ref and re-composite whenever palette order changes
+  useEffect(() => {
+    paletteRef.current = palette;
+    compositeLayers();
+  }, [palette, compositeLayers]);
 
   // Write one pixel to a layer's raw ImageData (no recomposite — caller must call compositeLayers)
   const setLayerPixel = useCallback((color: string, px: number, py: number) => {
