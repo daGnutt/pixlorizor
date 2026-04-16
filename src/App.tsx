@@ -8,6 +8,7 @@ import TopBar from './components/TopBar';
 import ParticleOverlay from './components/ParticleOverlay';
 import { useHistory } from './hooks/useHistory';
 import { exportPng } from './utils/exportPng';
+import { extractPalette } from './utils/colorUtils';
 
 const DEFAULT_PALETTE = ['#e94560', '#ffffff', '#000000', '#ff9900', '#00c9a7', '#5e60ce'];
 
@@ -30,6 +31,16 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, palette: [...state.palette, action.color] };
     case 'REMOVE_FROM_PALETTE':
       return { ...state, palette: state.palette.filter((_, i) => i !== action.index) };
+    case 'UPDATE_PALETTE_COLOR': {
+      const { index, oldColor, newColor } = action;
+      if (newColor === oldColor) return state;
+      if (state.palette.includes(newColor)) return state; // keep uniqueness
+      const palette = state.palette.map((c, i) => i === index ? newColor : c);
+      const activeColor = state.activeColor === oldColor ? newColor : state.activeColor;
+      return { ...state, palette, activeColor };
+    }
+    case 'SET_PALETTE':
+      return { ...state, palette: action.palette };
     case 'TOGGLE_GRID': return { ...state, showGrid: !state.showGrid };
     case 'SET_ZOOM': return { ...state, zoom: action.zoom };
     default: return state;
@@ -102,6 +113,18 @@ export default function App() {
     if (canvas) exportPng(canvas);
   }, []);
 
+  const handleRemoveFromPalette = useCallback((index: number) => {
+    const color = state.palette[index];
+    canvasRef.current?.eraseColor(color);
+    dispatch({ type: 'REMOVE_FROM_PALETTE', index });
+  }, [state.palette]);
+
+  const handlePaletteColorEdit = useCallback((index: number, newColor: string) => {
+    const oldColor = state.palette[index];
+    canvasRef.current?.replaceColor(oldColor, newColor);
+    dispatch({ type: 'UPDATE_PALETTE_COLOR', index, oldColor, newColor });
+  }, [state.palette]);
+
   const handleImportClick = useCallback(() => {
     importInputRef.current?.click();
   }, []);
@@ -120,6 +143,11 @@ export default function App() {
       setTimeout(() => {
         canvasRef.current?.loadImageData(img);
         URL.revokeObjectURL(url);
+        const canvas = canvasRef.current?.getCanvas();
+        if (canvas) {
+          const palette = extractPalette(canvas);
+          dispatch({ type: 'SET_PALETTE', palette });
+        }
       }, 0);
     };
     img.src = url;
@@ -185,7 +213,8 @@ export default function App() {
         onColorChange={c => dispatch({ type: 'SET_COLOR', color: c })}
         onAddToPalette={() => dispatch({ type: 'ADD_TO_PALETTE', color: state.activeColor })}
         onPaletteColorClick={c => dispatch({ type: 'SET_COLOR', color: c })}
-        onRemoveFromPalette={i => dispatch({ type: 'REMOVE_FROM_PALETTE', index: i })}
+        onRemoveFromPalette={handleRemoveFromPalette}
+        onPaletteColorEdit={handlePaletteColorEdit}
       />
 
       {showNewDialog && (

@@ -4,6 +4,7 @@ import { applyPencil } from '../tools/pencil';
 import { applyEraser } from '../tools/eraser';
 import { applyFill } from '../tools/fill';
 import { pickColor } from '../tools/picker';
+import { hexToRgba } from '../utils/colorUtils';
 import type { HistoryHandle } from '../hooks/useHistory';
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
 export interface CanvasHandle {
   getCanvas: () => HTMLCanvasElement | null;
   loadImageData: (img: HTMLImageElement) => void;
+  replaceColor: (oldHex: string, newHex: string) => void;
+  eraseColor: (hex: string) => void;
 }
 
 const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
@@ -41,6 +44,39 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
+      history.snapshot(canvas);
+      onSnapshot?.();
+    },
+    replaceColor: (oldHex: string, newHex: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d')!;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const [or, og, ob] = hexToRgba(oldHex);
+      const [nr, ng, nb] = hexToRgba(newHex);
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === or && data[i + 1] === og && data[i + 2] === ob && data[i + 3] !== 0) {
+          data[i] = nr; data[i + 1] = ng; data[i + 2] = nb;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      history.snapshot(canvas);
+      onSnapshot?.();
+    },
+    eraseColor: (hex: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d')!;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const [er, eg, eb] = hexToRgba(hex);
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === er && data[i + 1] === eg && data[i + 2] === eb && data[i + 3] !== 0) {
+          data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
       history.snapshot(canvas);
       onSnapshot?.();
     },

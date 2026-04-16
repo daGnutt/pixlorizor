@@ -22,5 +22,7 @@ export type AppAction =
   | { type: 'SET_COLOR'; color: string }
   | { type: 'ADD_TO_PALETTE'; color: string }
   | { type: 'REMOVE_FROM_PALETTE'; index: number }
+  | { type: 'UPDATE_PALETTE_COLOR'; index: number; oldColor: string; newColor: string }
+  | { type: 'SET_PALETTE'; palette: string[] }
   | { type: 'TOGGLE_GRID' }
   | { type: 'SET_ZOOM'; zoom: number };

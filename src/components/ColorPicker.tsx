@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 interface Props {
   activeColor: string;
   palette: string[];
@@ -5,6 +7,7 @@ interface Props {
   onAddToPalette: () => void;
   onPaletteColorClick: (color: string) => void;
   onRemoveFromPalette: (index: number) => void;
+  onPaletteColorEdit: (index: number, newColor: string) => void;
 }
 
 export default function ColorPicker({
@@ -14,7 +17,10 @@ export default function ColorPicker({
   onAddToPalette,
   onPaletteColorClick,
   onRemoveFromPalette,
+  onPaletteColorEdit,
 }: Props) {
+  const editInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   return (
     <div className="flex flex-col gap-3 p-3 bg-[var(--bg-panel)] border-t border-[var(--border-color)]">
       {/* Active color */}
@@ -43,12 +49,21 @@ export default function ColorPicker({
           {palette.map((color, i) => (
             <div key={i} className="relative group">
               <button
-                title={color}
+                title={`${color} — click to select, double-click to edit`}
                 onClick={() => onPaletteColorClick(color)}
+                onDoubleClick={() => editInputRefs.current[i]?.click()}
                 onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
                 className={`swatch-btn w-7 h-7 rounded border-2 block
                   ${color === activeColor ? 'border-white' : 'border-transparent'}`}
                 style={{ background: color, ['--swatch-color' as string]: color }}
+              />
+              {/* Hidden colour picker for in-place editing */}
+              <input
+                ref={el => { editInputRefs.current[i] = el; }}
+                type="color"
+                defaultValue={color}
+                className="sr-only"
+                onChange={e => onPaletteColorEdit(i, e.target.value)}
               />
               <button
                 title="Remove from palette"
@@ -62,7 +77,7 @@ export default function ColorPicker({
         </div>
       )}
       {palette.length === 0 && (
-        <p className="text-xs text-[var(--text-subtle)]">No palette colors yet. Add some!</p>
+        <p className="text-xs text-[var(--text-subtle)]">No palette colours yet. Add some!</p>
       )}
     </div>
   );
