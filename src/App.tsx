@@ -92,6 +92,7 @@ export default function App() {
   const handleNewCanvas = useCallback((size: CanvasSize) => {
     dispatch({ type: 'SET_CANVAS_SIZE', size });
     dispatch({ type: 'SET_PALETTE', palette: DEFAULT_PALETTE });
+    dispatch({ type: 'SET_COLOR', color: DEFAULT_PALETTE[0] });
     history.clear();
     setShowNewDialog(false);
     setCanvasKey(k => k + 1);
@@ -150,6 +151,7 @@ export default function App() {
         if (canvas) {
           const palette = extractPalette(canvas);
           dispatch({ type: 'SET_PALETTE', palette });
+          dispatch({ type: 'SET_COLOR', color: palette[0] ?? DEFAULT_PALETTE[0] });
         }
       }, 0);
     };
@@ -214,7 +216,10 @@ export default function App() {
       <ColorPicker
         activeColor={state.activeColor}
         palette={state.palette}
-        onColorChange={c => dispatch({ type: 'SET_COLOR', color: c })}
+        onColorChange={c => {
+          dispatch({ type: 'SET_COLOR', color: c });
+          if (!state.palette.includes(c)) dispatch({ type: 'ADD_TO_PALETTE', color: c });
+        }}
         onAddToPalette={() => dispatch({ type: 'ADD_TO_PALETTE', color: state.activeColor })}
         onPaletteColorClick={c => dispatch({ type: 'SET_COLOR', color: c })}
         onRemoveFromPalette={handleRemoveFromPalette}
