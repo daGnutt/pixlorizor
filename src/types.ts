@@ -1,5 +1,10 @@
 export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker';
 
+export interface LayerEntry {
+  color: string;      // hex, e.g. "#ff0000"
+  imageData: ImageData;
+}
+
 export interface CanvasSize {
   width: number;
   height: number;

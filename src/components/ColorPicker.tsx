@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react';
+
 interface Props {
   activeColor: string;
   palette: string[];
@@ -5,6 +7,7 @@ interface Props {
   onAddToPalette: () => void;
   onPaletteColorClick: (color: string) => void;
   onRemoveFromPalette: (index: number) => void;
+  onReorderPalette?: (from: number, to: number) => void;
 }
 
 export default function ColorPicker({
@@ -14,7 +17,11 @@ export default function ColorPicker({
   onAddToPalette,
   onPaletteColorClick,
   onRemoveFromPalette,
+  onReorderPalette,
 }: Props) {
+  const dragIndex = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   return (
     <div className="flex flex-col gap-3 p-3 bg-[var(--bg-panel)] border-t border-[var(--border-color)]">
       {/* Active color — click to open colour picker and edit the selected palette chip */}
@@ -41,9 +48,25 @@ export default function ColorPicker({
       {palette.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {palette.map((color, i) => (
-            <div key={i} className="relative group">
+            <div
+              key={i}
+              className={`relative group${dragOverIndex === i ? ' outline outline-2 outline-white rounded' : ''}`}
+              draggable
+              onDragStart={() => { dragIndex.current = i; }}
+              onDragOver={e => { e.preventDefault(); setDragOverIndex(i); }}
+              onDragLeave={() => setDragOverIndex(null)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragOverIndex(null);
+                if (dragIndex.current !== null && dragIndex.current !== i) {
+                  onReorderPalette?.(dragIndex.current, i);
+                }
+                dragIndex.current = null;
+              }}
+              onDragEnd={() => { dragIndex.current = null; setDragOverIndex(null); }}
+            >
               <button
-                title={`${color} — click to select`}
+                title={`${color} — click to select, drag to reorder`}
                 onClick={() => onPaletteColorClick(color)}
                 onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
                 className={`swatch-btn w-7 h-7 rounded border-2 block

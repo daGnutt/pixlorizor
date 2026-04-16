@@ -69,18 +69,18 @@ export default function App() {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') {
           e.preventDefault();
-          const canvas = canvasRef.current?.getCanvas();
-          if (canvas) {
-            const palette = history.undo(canvas);
-            if (palette) dispatch({ type: 'SET_PALETTE', palette });
+          const entry = history.undo();
+          if (entry) {
+            canvasRef.current?.setLayers(entry.layers);
+            dispatch({ type: 'SET_PALETTE', palette: entry.palette });
             forceHistoryRefresh();
           }
         } else if (e.key === 'y' || (e.shiftKey && e.key === 'z')) {
           e.preventDefault();
-          const canvas = canvasRef.current?.getCanvas();
-          if (canvas) {
-            const palette = history.redo(canvas);
-            if (palette) dispatch({ type: 'SET_PALETTE', palette });
+          const entry = history.redo();
+          if (entry) {
+            canvasRef.current?.setLayers(entry.layers);
+            dispatch({ type: 'SET_PALETTE', palette: entry.palette });
             forceHistoryRefresh();
           }
         }
@@ -107,25 +107,25 @@ export default function App() {
     setShowNewDialog(false);
     setCanvasKey(k => k + 1);
     setTimeout(() => {
-      const canvas = canvasRef.current?.getCanvas();
-      if (canvas) history.snapshot(canvas, DEFAULT_PALETTE);
+      const layers = canvasRef.current?.getLayers() ?? DEFAULT_PALETTE.map(color => ({ color, imageData: new ImageData(size.width, size.height) }));
+      history.snapshot(layers, DEFAULT_PALETTE);
     }, 0);
   }, [history]);
 
   const handleUndo = useCallback(() => {
-    const canvas = canvasRef.current?.getCanvas();
-    if (canvas) {
-      const palette = history.undo(canvas);
-      if (palette) dispatch({ type: 'SET_PALETTE', palette });
+    const entry = history.undo();
+    if (entry) {
+      canvasRef.current?.setLayers(entry.layers);
+      dispatch({ type: 'SET_PALETTE', palette: entry.palette });
       forceHistoryRefresh();
     }
   }, [history, forceHistoryRefresh]);
 
   const handleRedo = useCallback(() => {
-    const canvas = canvasRef.current?.getCanvas();
-    if (canvas) {
-      const palette = history.redo(canvas);
-      if (palette) dispatch({ type: 'SET_PALETTE', palette });
+    const entry = history.redo();
+    if (entry) {
+      canvasRef.current?.setLayers(entry.layers);
+      dispatch({ type: 'SET_PALETTE', palette: entry.palette });
       forceHistoryRefresh();
     }
   }, [history, forceHistoryRefresh]);
@@ -140,9 +140,10 @@ export default function App() {
     const newPalette = state.palette.filter((_, i) => i !== index);
     canvasRef.current?.eraseColor(color);
     dispatch({ type: 'REMOVE_FROM_PALETTE', index });
-    const canvas = canvasRef.current?.getCanvas();
-    if (canvas) { history.snapshot(canvas, newPalette); forceHistoryRefresh(); }
-  }, [state.palette, history, forceHistoryRefresh]);
+    const layers = canvasRef.current?.getLayers() ?? newPalette.map(c => ({ color: c, imageData: new ImageData(state.canvasSize!.width, state.canvasSize!.height) }));
+    history.snapshot(layers, newPalette);
+    forceHistoryRefresh();
+  }, [state.palette, state.canvasSize, history, forceHistoryRefresh]);
 
   const handlePaletteColorEdit = useCallback((index: number, newColor: string) => {
     const oldColor = state.palette[index];
@@ -150,9 +151,21 @@ export default function App() {
     const newPalette = state.palette.map((c, i) => i === index ? newColor : c);
     canvasRef.current?.replaceColor(oldColor, newColor);
     dispatch({ type: 'UPDATE_PALETTE_COLOR', index, oldColor, newColor });
-    const canvas = canvasRef.current?.getCanvas();
-    if (canvas) { history.snapshot(canvas, newPalette); forceHistoryRefresh(); }
-  }, [state.palette, history, forceHistoryRefresh]);
+    const layers = canvasRef.current?.getLayers() ?? newPalette.map(c => ({ color: c, imageData: new ImageData(state.canvasSize!.width, state.canvasSize!.height) }));
+    history.snapshot(layers, newPalette);
+    forceHistoryRefresh();
+  }, [state.palette, state.canvasSize, history, forceHistoryRefresh]);
+
+  const handleReorderPalette = useCallback((from: number, to: number) => {
+    if (from === to) return;
+    const newPalette = [...state.palette];
+    const [moved] = newPalette.splice(from, 1);
+    newPalette.splice(to, 0, moved);
+    dispatch({ type: 'SET_PALETTE', palette: newPalette });
+    const layers = canvasRef.current?.getLayers() ?? newPalette.map(c => ({ color: c, imageData: new ImageData(state.canvasSize!.width, state.canvasSize!.height) }));
+    history.snapshot(layers, newPalette);
+    forceHistoryRefresh();
+  }, [state.palette, state.canvasSize, history, forceHistoryRefresh]);
 
   const handleImportClick = useCallback(() => {
     importInputRef.current?.click();
@@ -177,7 +190,8 @@ export default function App() {
           const palette = extractPalette(canvas);
           dispatch({ type: 'SET_PALETTE', palette });
           dispatch({ type: 'SET_COLOR', color: palette[0] ?? DEFAULT_PALETTE[0] });
-          history.snapshot(canvas, palette);
+          const layers = canvasRef.current?.getLayers() ?? palette.map(color => ({ color, imageData: new ImageData(newSize.width, newSize.height) }));
+          history.snapshot(layers, palette);
         }
       }, 0);
     };
@@ -262,6 +276,7 @@ export default function App() {
         }}
         onPaletteColorClick={c => dispatch({ type: 'SET_COLOR', color: c })}
         onRemoveFromPalette={handleRemoveFromPalette}
+        onReorderPalette={handleReorderPalette}
       />
 
       {showNewDialog && (

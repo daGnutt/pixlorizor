@@ -1,8 +1,6 @@
 import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
-import type { Tool } from '../types';
-import { applyPencil } from '../tools/pencil';
-import { applyEraser } from '../tools/eraser';
-import { applyFill } from '../tools/fill';
+import type { Tool, LayerEntry } from '../types';
+import { getFloodFillPixels } from '../tools/fill';
 import { pickColor } from '../tools/picker';
 import { hexToRgba } from '../utils/colorUtils';
 import { findEdgeIntersection } from '../utils/canvasGeometry';
@@ -25,6 +23,8 @@ interface Props {
 
 export interface CanvasHandle {
   getCanvas: () => HTMLCanvasElement | null;
+  getLayers: () => LayerEntry[];
+  setLayers: (entries: LayerEntry[]) => void;
   loadImageData: (img: HTMLImageElement) => void;
   replaceColor: (oldHex: string, newHex: string) => void;
   eraseColor: (hex: string) => void;
@@ -36,6 +36,11 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<HTMLCanvasElement>(null);
+  const layersRef = useRef<Map<string, ImageData>>(new Map());
+  // Keep a ref to the current palette for use inside non-reactive callbacks
+  const paletteRef = useRef<string[]>(palette);
+  useEffect(() => { paletteRef.current = palette; }, [palette]);
+
   const isDrawing = useRef(false);
   const lastPixel = useRef<[number, number] | null>(null);
   const secondLastPixel = useRef<[number, number] | null>(null);
@@ -43,53 +48,135 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
   const waitingForEntry = useRef(false);
   const isShiftHeld = useRef(false);
   const shiftAnchor = useRef<[number, number] | null>(null);
-  const workingSnapshot = useRef<ImageData | null>(null);
+  const workingSnapshot = useRef<Map<string, ImageData> | null>(null);
   const [paintGlow, setPaintGlow] = useState<{ px: number; py: number } | null>(null);
+
+  // ─── Layer helpers ────────────────────────────────────────────────────────
+
+  const getOrCreateLayer = useCallback((color: string): ImageData => {
+    const existing = layersRef.current.get(color);
+    if (existing) return existing;
+    const blank = new ImageData(width, height);
+    layersRef.current.set(color, blank);
+    return blank;
+  }, [width, height]);
+
+  const compositeLayers = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const result = new ImageData(width, height);
+    for (const color of paletteRef.current) {
+      const layer = layersRef.current.get(color);
+      if (!layer) continue;
+      const src = layer.data;
+      const dst = result.data;
+      for (let i = 0; i < dst.length; i += 4) {
+        if (src[i + 3] > 0) {
+          dst[i]     = src[i];
+          dst[i + 1] = src[i + 1];
+          dst[i + 2] = src[i + 2];
+          dst[i + 3] = src[i + 3];
+        }
+      }
+    }
+    ctx.putImageData(result, 0, 0);
+  }, [width, height]);
+
+  // Write one pixel to a layer's raw ImageData (no recomposite — caller must call compositeLayers)
+  const setLayerPixel = useCallback((color: string, px: number, py: number) => {
+    const layer = getOrCreateLayer(color);
+    const [r, g, b] = hexToRgba(color);
+    const i = (py * width + px) * 4;
+    layer.data[i]     = r;
+    layer.data[i + 1] = g;
+    layer.data[i + 2] = b;
+    layer.data[i + 3] = 255;
+  }, [getOrCreateLayer, width]);
+
+  // Clear one pixel from a layer's raw ImageData
+  const clearLayerPixel = useCallback((color: string, px: number, py: number) => {
+    const layer = layersRef.current.get(color);
+    if (!layer) return;
+    const i = (py * width + px) * 4;
+    layer.data[i] = layer.data[i + 1] = layer.data[i + 2] = layer.data[i + 3] = 0;
+  }, [width]);
+
+  // ─── CanvasHandle ─────────────────────────────────────────────────────────
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => canvasRef.current,
+
+    getLayers: (): LayerEntry[] =>
+      paletteRef.current.map(color => ({
+        color,
+        imageData: layersRef.current.get(color) ?? new ImageData(width, height),
+      })),
+
+    setLayers: (entries: LayerEntry[]) => {
+      layersRef.current = new Map(entries.map(e => [e.color, e.imageData]));
+      compositeLayers();
+    },
+
     loadImageData: (img: HTMLImageElement) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const ctx = canvas.getContext('2d')!;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-      // Snapshot is taken by App.tsx after the palette is extracted
+      // Draw image to a temp canvas to read pixels
+      const tmp = document.createElement('canvas');
+      tmp.width = width;
+      tmp.height = height;
+      const tctx = tmp.getContext('2d')!;
+      tctx.drawImage(img, 0, 0);
+      const { data } = tctx.getImageData(0, 0, width, height);
+      // Rebuild layers from flat image — each pixel goes into its colour's layer
+      layersRef.current = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+        let layer = layersRef.current.get(hex);
+        if (!layer) {
+          layer = new ImageData(width, height);
+          layersRef.current.set(hex, layer);
+        }
+        const pi = i; // same index
+        layer.data[pi]     = r;
+        layer.data[pi + 1] = g;
+        layer.data[pi + 2] = b;
+        layer.data[pi + 3] = 255;
+      }
+      compositeLayers();
+      // Snapshot taken by App.tsx after palette is extracted
     },
+
     replaceColor: (oldHex: string, newHex: string) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d')!;
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      const [or, og, ob] = hexToRgba(oldHex);
-      const [nr, ng, nb] = hexToRgba(newHex);
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] === or && data[i + 1] === og && data[i + 2] === ob && data[i + 3] !== 0) {
-          data[i] = nr; data[i + 1] = ng; data[i + 2] = nb;
+      const layer = layersRef.current.get(oldHex);
+      if (layer) {
+        // Re-colour every pixel in the layer
+        const [nr, ng, nb] = hexToRgba(newHex);
+        for (let i = 0; i < layer.data.length; i += 4) {
+          if (layer.data[i + 3] > 0) {
+            layer.data[i]     = nr;
+            layer.data[i + 1] = ng;
+            layer.data[i + 2] = nb;
+          }
         }
+        layersRef.current.delete(oldHex);
+        layersRef.current.set(newHex, layer);
       }
-      ctx.putImageData(imageData, 0, 0);
-      // Snapshot is taken by App.tsx with the updated palette
+      compositeLayers();
+      // Snapshot taken by App.tsx with the updated palette
     },
+
     eraseColor: (hex: string) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d')!;
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      const [er, eg, eb] = hexToRgba(hex);
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] === er && data[i + 1] === eg && data[i + 2] === eb && data[i + 3] !== 0) {
-          data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0;
-        }
-      }
-      ctx.putImageData(imageData, 0, 0);
-      // Snapshot is taken by App.tsx with the updated palette
+      layersRef.current.delete(hex);
+      compositeLayers();
+      // Snapshot taken by App.tsx with the updated palette
     },
   }));
 
-  // Draw grid overlay
+  // ─── Grid overlay ─────────────────────────────────────────────────────────
+
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -113,19 +200,20 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     }
   }, [showGrid, width, height, zoom]);
 
+  // ─── Shift key tracking ───────────────────────────────────────────────────
 
-
-  // Track Shift key; when pressed mid-stroke, anchor the straight-line start
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Shift') return;
       isShiftHeld.current = true;
       if (isDrawing.current && lastPixel.current) {
         shiftAnchor.current = lastPixel.current;
-        const canvas = canvasRef.current;
-        if (canvas) {
-          workingSnapshot.current = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+        // Deep-copy current layers as working snapshot
+        const snap = new Map<string, ImageData>();
+        for (const [color, layer] of layersRef.current) {
+          snap.set(color, new ImageData(new Uint8ClampedArray(layer.data), layer.width, layer.height));
         }
+        workingSnapshot.current = snap;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -157,28 +245,34 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     return [px, py] as [number, number];
   }, [zoom]);
 
+  // ─── Single-pixel draw ────────────────────────────────────────────────────
+
   const drawAt = useCallback((px: number, py: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
     if (px < 0 || px >= width || py < 0 || py >= height) return;
-    const ctx = canvas.getContext('2d')!;
 
     switch (activeTool) {
       case 'pencil': {
-        applyPencil(ctx, px, py, activeColor);
+        setLayerPixel(activeColor, px, py);
+        compositeLayers();
         if (glitterbombs) {
           const [sx, sy] = toScreenPos(px, py);
           explode(sx, sy, 10, [activeColor]);
         }
         break;
       }
-      case 'eraser': applyEraser(ctx, px, py); break;
+      case 'eraser': {
+        // Erase from the active colour's layer; underlying layers are revealed
+        clearLayerPixel(activeColor, px, py);
+        compositeLayers();
+        break;
+      }
       default: break;
     }
-  }, [activeTool, activeColor, width, height, glitterbombs]);
+  }, [activeTool, activeColor, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
+
+  // ─── Bresenham segment ────────────────────────────────────────────────────
 
   const drawBresenhamSegment = useCallback((
-    ctx: CanvasRenderingContext2D,
     from: [number, number],
     to: [number, number],
   ) => {
@@ -190,13 +284,13 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     while (true) {
       if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
         if (activeTool === 'pencil') {
-          applyPencil(ctx, x0, y0, activeColor);
+          setLayerPixel(activeColor, x0, y0);
           if (glitterbombs) {
             const [sx2, sy2] = toScreenPos(x0, y0);
             explode(sx2, sy2, 5, [activeColor]);
           }
         } else if (activeTool === 'eraser') {
-          applyEraser(ctx, x0, y0);
+          clearLayerPixel(activeColor, x0, y0);
         }
       }
       if (x0 === x1 && y0 === y1) break;
@@ -204,7 +298,10 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       if (e2 > -dy) { err -= dy; x0 += sx; }
       if (e2 < dx) { err += dx; y0 += sy; }
     }
-  }, [activeTool, activeColor, width, height, glitterbombs, toScreenPos]);
+    compositeLayers();
+  }, [activeTool, activeColor, width, height, glitterbombs, setLayerPixel, clearLayerPixel, compositeLayers, toScreenPos]);
+
+  // ─── Mouse events ─────────────────────────────────────────────────────────
 
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -214,12 +311,27 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const [px, py] = getPixelCoords(e);
 
     if (activeTool === 'fill') {
-      applyFill(ctx, px, py, activeColor, width, height);
+      const composite = ctx.getImageData(0, 0, width, height);
+      const pixels = getFloodFillPixels(composite, px, py, width, height);
+      const [r, g, b] = hexToRgba(activeColor);
+      const layer = getOrCreateLayer(activeColor);
+      for (const [fx, fy] of pixels) {
+        const i = (fy * width + fx) * 4;
+        layer.data[i]     = r;
+        layer.data[i + 1] = g;
+        layer.data[i + 2] = b;
+        layer.data[i + 3] = 255;
+      }
+      compositeLayers();
       if (glitterbombs) {
         const [sx, sy] = toScreenPos(px, py);
         explode(sx, sy, 28, [activeColor]);
       }
-      history.snapshot(canvas, palette);
+      const layers = paletteRef.current.map(color => ({
+        color,
+        imageData: layersRef.current.get(color) ?? new ImageData(width, height),
+      }));
+      history.snapshot(layers, paletteRef.current);
       onSnapshot?.();
       return;
     }
@@ -237,25 +349,32 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     lastPixel.current = [px, py];
     if (isShiftHeld.current) {
       shiftAnchor.current = [px, py];
-      workingSnapshot.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const snap = new Map<string, ImageData>();
+      for (const [color, layer] of layersRef.current) {
+        snap.set(color, new ImageData(new Uint8ClampedArray(layer.data), layer.width, layer.height));
+      }
+      workingSnapshot.current = snap;
     } else {
       shiftAnchor.current = null;
       workingSnapshot.current = null;
     }
     setPaintGlow({ px, py });
     drawAt(px, py);
-  }, [activeTool, activeColor, palette, width, height, glitterbombs, getPixelCoords, drawAt, toScreenPos, history, onColorPicked, onSnapshot]);
+  }, [activeTool, activeColor, width, height, glitterbombs, getPixelCoords, drawAt, toScreenPos, history, onColorPicked, onSnapshot, getOrCreateLayer, compositeLayers]);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
     const [px, py] = getPixelCoords(e);
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d')!;
 
-    // Shift held — restore snapshot and draw a straight line to current position
+    // Shift held — restore layer snapshot and draw straight line to current position
     if (isShiftHeld.current && shiftAnchor.current && workingSnapshot.current) {
-      ctx.putImageData(workingSnapshot.current, 0, 0);
-      drawBresenhamSegment(ctx, shiftAnchor.current, [px, py]);
+      // Restore layers from snapshot
+      for (const [color, snap] of workingSnapshot.current) {
+        const layer = layersRef.current.get(color);
+        if (layer) layer.data.set(snap.data);
+        else layersRef.current.set(color, new ImageData(new Uint8ClampedArray(snap.data), snap.width, snap.height));
+      }
+      drawBresenhamSegment(shiftAnchor.current, [px, py]);
       lastPixel.current = [px, py];
       if (px >= 0 && px < width && py >= 0 && py < height) {
         setPaintGlow({ px, py });
@@ -264,15 +383,12 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     }
 
     if (waitingForEntry.current) {
-      // Phase 1: first move after leaving — buffer as P1, wait for P2
       pendingEntryPixel.current = [px, py];
       waitingForEntry.current = false;
       return;
     }
 
     if (pendingEntryPixel.current) {
-      // Phase 2: second move after leaving — P1 and P2 are from separate mousemove
-      // events so they are guaranteed to differ, giving a reliable entry direction.
       const P1 = pendingEntryPixel.current;
       const P2: [number, number] = [px, py];
       const entryEdge = findEdgeIntersection(
@@ -280,16 +396,15 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         P1[0] - P2[0], P1[1] - P2[1],
         width, height,
       );
-      drawBresenhamSegment(ctx, entryEdge, P1);
-      drawBresenhamSegment(ctx, P1, P2);
+      drawBresenhamSegment(entryEdge, P1);
+      drawBresenhamSegment(P1, P2);
       pendingEntryPixel.current = null;
       secondLastPixel.current = P1;
       lastPixel.current = P2;
     } else {
-      // Phase 3: normal Bresenham stroke
       const last = lastPixel.current;
       if (last) {
-        drawBresenhamSegment(ctx, last, [px, py]);
+        drawBresenhamSegment(last, [px, py]);
         secondLastPixel.current = last;
         lastPixel.current = [px, py];
       }
@@ -308,11 +423,14 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     pendingEntryPixel.current = null;
     waitingForEntry.current = false;
     setPaintGlow(null);
-    const canvas = canvasRef.current;
-    if (canvas) { history.snapshot(canvas, palette); onSnapshot?.(); }
-  }, [history, palette, onSnapshot]);
+    const layers = paletteRef.current.map(color => ({
+      color,
+      imageData: layersRef.current.get(color) ?? new ImageData(width, height),
+    }));
+    history.snapshot(layers, paletteRef.current);
+    onSnapshot?.();
+  }, [history, width, height, onSnapshot]);
 
-  // Stop drawing when mouse button is released anywhere outside the canvas
   useEffect(() => {
     window.addEventListener('mouseup', onMouseUp);
     return () => window.removeEventListener('mouseup', onMouseUp);
@@ -342,7 +460,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
           backgroundSize: `${zoom * 2}px ${zoom * 2}px`,
         }}
       />
-      {/* Pixel canvas */}
+      {/* Pixel canvas — shows the composited result of all layers */}
       <canvas
         ref={canvasRef}
         width={width}
@@ -361,28 +479,23 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         onMouseLeave={(e) => {
           setPaintGlow(null);
           if (!isDrawing.current) return;
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-          const ctx = canvas.getContext('2d')!;
           const last = lastPixel.current;
           const secondLast = secondLastPixel.current;
           if (last && secondLast) {
-            // Extrapolate exit edge from direction secondLast → last
             const exitEdge = findEdgeIntersection(
               secondLast[0], secondLast[1],
               last[0] - secondLast[0], last[1] - secondLast[1],
               width, height,
             );
-            drawBresenhamSegment(ctx, last, exitEdge);
+            drawBresenhamSegment(last, exitEdge);
           } else if (last) {
-            // Only one point known — use the exit event position as direction hint
             const [ex, ey] = getPixelCoords(e);
             const exitEdge = findEdgeIntersection(
               last[0], last[1],
               ex - last[0], ey - last[1],
               width, height,
             );
-            drawBresenhamSegment(ctx, last, exitEdge);
+            drawBresenhamSegment(last, exitEdge);
           }
           secondLastPixel.current = null;
           pendingEntryPixel.current = null;
@@ -400,7 +513,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
           pointerEvents: 'none',
         }}
       />
-      {/* Paint halo — glowing overlay on the pixel being painted */}
+      {/* Paint halo */}
       {paintGlow && (activeTool === 'pencil' || activeTool === 'eraser') && (
         <div
           className="paint-halo"
@@ -417,3 +530,4 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 });
 
 export default PixelCanvas;
+
