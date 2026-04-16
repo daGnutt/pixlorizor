@@ -1,14 +1,15 @@
 import { useCallback, useRef } from 'react';
+import type { LayerEntry } from '../types';
 
 interface HistoryEntry {
-  imageData: ImageData;
+  layers: LayerEntry[];   // deep copies of all layer ImageData values
   palette: string[];
 }
 
 export interface HistoryHandle {
-  snapshot: (canvas: HTMLCanvasElement, palette: string[]) => void;
-  undo: (canvas: HTMLCanvasElement) => string[] | null;
-  redo: (canvas: HTMLCanvasElement) => string[] | null;
+  snapshot: (layers: LayerEntry[], palette: string[]) => void;
+  undo: () => HistoryEntry | null;
+  redo: () => HistoryEntry | null;
   canUndo: () => boolean;
   canRedo: () => boolean;
   clear: () => void;
@@ -16,38 +17,36 @@ export interface HistoryHandle {
 
 const MAX_HISTORY = 50;
 
+function deepCopyLayers(layers: LayerEntry[]): LayerEntry[] {
+  return layers.map(({ color, imageData }) => ({
+    color,
+    imageData: new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height),
+  }));
+}
+
 export function useHistory(): HistoryHandle {
   const stack = useRef<HistoryEntry[]>([]);
   const cursor = useRef<number>(-1);
 
-  const snapshot = useCallback((canvas: HTMLCanvasElement, palette: string[]) => {
-    const ctx = canvas.getContext('2d')!;
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    // Drop any redo entries ahead of cursor
+  const snapshot = useCallback((layers: LayerEntry[], palette: string[]) => {
     stack.current = stack.current.slice(0, cursor.current + 1);
-    stack.current.push({ imageData, palette });
+    stack.current.push({ layers: deepCopyLayers(layers), palette });
     if (stack.current.length > MAX_HISTORY) {
       stack.current.shift();
     }
     cursor.current = stack.current.length - 1;
   }, []);
 
-  const undo = useCallback((canvas: HTMLCanvasElement): string[] | null => {
+  const undo = useCallback((): HistoryEntry | null => {
     if (cursor.current <= 0) return null;
     cursor.current -= 1;
-    const entry = stack.current[cursor.current];
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(entry.imageData, 0, 0);
-    return entry.palette;
+    return stack.current[cursor.current];
   }, []);
 
-  const redo = useCallback((canvas: HTMLCanvasElement): string[] | null => {
+  const redo = useCallback((): HistoryEntry | null => {
     if (cursor.current >= stack.current.length - 1) return null;
     cursor.current += 1;
-    const entry = stack.current[cursor.current];
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(entry.imageData, 0, 0);
-    return entry.palette;
+    return stack.current[cursor.current];
   }, []);
 
   const canUndo = useCallback(() => cursor.current > 0, []);
