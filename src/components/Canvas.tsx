@@ -15,6 +15,7 @@ interface Props {
   showGrid: boolean;
   history: HistoryHandle;
   onColorPicked: (color: string) => void;
+  onSnapshot?: () => void;
 }
 
 export interface CanvasHandle {
@@ -23,7 +24,7 @@ export interface CanvasHandle {
 }
 
 const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
-  { width, height, zoom, activeTool, activeColor, showGrid, history, onColorPicked },
+  { width, height, zoom, activeTool, activeColor, showGrid, history, onColorPicked, onSnapshot },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,6 +41,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       history.snapshot(canvas);
+      onSnapshot?.();
     },
   }));
 
@@ -95,10 +97,9 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const [px, py] = getPixelCoords(e);
 
     if (activeTool === 'fill') {
-      // Snapshot before fill
-      history.snapshot(canvas);
       applyFill(ctx, px, py, activeColor, width, height);
       history.snapshot(canvas);
+      onSnapshot?.();
       return;
     }
 
@@ -110,10 +111,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 
     isDrawing.current = true;
     lastPixel.current = [px, py];
-    // Snapshot before stroke begins
-    history.snapshot(canvas);
     drawAt(px, py);
-  }, [activeTool, activeColor, width, height, getPixelCoords, drawAt, history, onColorPicked]);
+  }, [activeTool, activeColor, width, height, getPixelCoords, drawAt, history, onColorPicked, onSnapshot]);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
@@ -148,8 +147,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     isDrawing.current = false;
     lastPixel.current = null;
     const canvas = canvasRef.current;
-    if (canvas) history.snapshot(canvas);
-  }, [history]);
+    if (canvas) { history.snapshot(canvas); onSnapshot?.(); }
+  }, [history, onSnapshot]);
 
   const cursorStyle = {
     pencil: 'crosshair',

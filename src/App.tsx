@@ -124,15 +124,7 @@ export default function App() {
     img.src = url;
   }, [history]);
 
-  const clampedZoom = Math.max(1, Math.min(
-    state.zoom,
-    state.canvasSize
-      ? Math.floor(Math.min(
-          (window.innerWidth - 80) / state.canvasSize.width,
-          (window.innerHeight - 120) / state.canvasSize.height,
-        ))
-      : state.zoom,
-  ));
+  const clampedZoom = Math.max(1, state.zoom);
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -163,7 +155,8 @@ export default function App() {
           onZoomChange={z => dispatch({ type: 'SET_ZOOM', zoom: z })}
         />
 
-        <div className="flex-1 overflow-auto flex items-center justify-center bg-[#0d1117] p-4">
+        <div className="flex-1 overflow-auto bg-[#0d1117]">
+          <div className="min-w-full min-h-full flex items-center justify-center p-4">
           {state.canvasSize ? (
             <PixelCanvas
               ref={canvasRef}
@@ -175,10 +168,12 @@ export default function App() {
               showGrid={state.showGrid}
               history={history}
               onColorPicked={color => dispatch({ type: 'SET_COLOR', color })}
+              onSnapshot={forceHistoryRefresh}
             />
           ) : (
             <p className="text-gray-600 text-sm">Create a new canvas to start painting.</p>
           )}
+          </div>
         </div>
       </div>
 

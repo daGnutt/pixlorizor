@@ -41,15 +41,23 @@ export default function ColorPicker({
       {palette.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {palette.map((color, i) => (
-            <button
-              key={i}
-              title={color}
-              onClick={() => onPaletteColorClick(color)}
-              onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
-              className={`w-7 h-7 rounded border-2 transition-colors
-                ${color === activeColor ? 'border-white' : 'border-transparent hover:border-gray-400'}`}
-              style={{ background: color }}
-            />
+            <div key={i} className="relative group">
+              <button
+                title={color}
+                onClick={() => onPaletteColorClick(color)}
+                onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
+                className={`w-7 h-7 rounded border-2 transition-colors block
+                  ${color === activeColor ? 'border-white' : 'border-transparent hover:border-gray-400'}`}
+                style={{ background: color }}
+              />
+              <button
+                title="Remove from palette"
+                onClick={() => onRemoveFromPalette(i)}
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-700 text-white text-[9px] leading-none items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
       )}
