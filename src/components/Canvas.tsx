@@ -191,6 +191,12 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     if (canvas) { history.snapshot(canvas); onSnapshot?.(); }
   }, [history, onSnapshot]);
 
+  // Stop drawing when mouse button is released anywhere outside the canvas
+  useEffect(() => {
+    window.addEventListener('mouseup', onMouseUp);
+    return () => window.removeEventListener('mouseup', onMouseUp);
+  }, [onMouseUp]);
+
   const cursorStyle = {
     pencil: 'crosshair',
     eraser: 'cell',
@@ -231,7 +237,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
+        onMouseLeave={() => { lastPixel.current = null; }}
       />
       {/* Grid overlay canvas */}
       <canvas
