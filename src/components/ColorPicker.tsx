@@ -53,7 +53,7 @@ export default function ColorPicker({
               <button
                 title="Remove from palette"
                 onClick={() => onRemoveFromPalette(i)}
-                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--bg-button)] text-[var(--text-primary)] text-[9px] leading-none items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-button)] text-[var(--text-primary)] text-[10px] font-bold leading-none items-center justify-center hidden group-hover:flex hover:bg-red-500 hover:text-white transition-colors z-20"
               >
                 ×
               </button>

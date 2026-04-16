@@ -72,9 +72,9 @@ body {
 }
 
 @keyframes swatch-shimmer {
-  0%   { box-shadow: 0 0 0 2px var(--swatch-color, #fff), 0 0 6px 3px color-mix(in srgb, var(--swatch-color, #fff) 60%, transparent); }
-  50%  { box-shadow: 0 0 0 3px var(--swatch-color, #fff), 0 0 14px 8px color-mix(in srgb, var(--swatch-color, #fff) 80%, transparent); }
-  100% { box-shadow: 0 0 0 2px var(--swatch-color, #fff), 0 0 6px 3px color-mix(in srgb, var(--swatch-color, #fff) 60%, transparent); }
+  0%   { box-shadow: 0 0 0 2px var(--swatch-color, #fff), 0 0 6px 3px color-mix(in srgb, var(--swatch-color, #fff) 60%, transparent); transform: scale(1.35); }
+  50%  { box-shadow: 0 0 0 3px var(--swatch-color, #fff), 0 0 14px 8px color-mix(in srgb, var(--swatch-color, #fff) 80%, transparent); transform: scale(1.35); }
+  100% { box-shadow: 0 0 0 2px var(--swatch-color, #fff), 0 0 6px 3px color-mix(in srgb, var(--swatch-color, #fff) 60%, transparent); transform: scale(1.35); }
 }
 
 @keyframes paint-halo-pulse {
