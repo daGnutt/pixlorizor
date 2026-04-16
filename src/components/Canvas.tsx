@@ -188,10 +188,10 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const ctx = canvas.getContext('2d')!;
     const last = lastPixel.current;
 
-    if (pendingEntryPixel.current && last) {
+    if (pendingEntryPixel.current) {
       // We now have two positions inside the canvas: pendingEntryPixel and [px, py].
       // Extrapolate backward from pendingEntryPixel in the direction (P1 → P2) reversed
-      // to find the entry edge pixel, then draw the full re-entry segment.
+      // to find the entry edge pixel, then start the stroke from there.
       const P1 = pendingEntryPixel.current;
       const P2: [number, number] = [px, py];
       const entryEdge = findEdgeIntersection(
@@ -199,7 +199,6 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         P1[0] - P2[0], P1[1] - P2[1],
         width, height,
       );
-      drawBresenhamSegment(ctx, last, entryEdge);
       drawBresenhamSegment(ctx, entryEdge, P1);
       drawBresenhamSegment(ctx, P1, P2);
       pendingEntryPixel.current = null;
@@ -277,6 +276,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         onMouseEnter={(e) => {
           if (!isDrawing.current) return;
           const [px, py] = getPixelCoords(e);
+          lastPixel.current = null; // discard exit point — re-entry starts fresh
+          secondLastPixel.current = null;
           pendingEntryPixel.current = [px, py];
         }}
         onMouseLeave={(e) => {
