@@ -36,7 +36,7 @@ export default function Toolbar({
   onZoomChange,
 }: Props) {
   return (
-    <div className="flex flex-col items-center gap-1 p-2 bg-[#16213e] border-r border-[#0f3460] w-14 shrink-0">
+    <div className="flex flex-col items-center gap-1 p-2 bg-[var(--bg-panel)] border-r border-[var(--border-color)] w-14 shrink-0">
       {TOOLS.map(t => (
         <button
           key={t.id}
@@ -44,14 +44,14 @@ export default function Toolbar({
           onClick={() => onToolChange(t.id)}
           className={`w-10 h-10 rounded text-lg transition-colors flex items-center justify-center
             ${activeTool === t.id
-              ? 'bg-[#e94560] text-white'
-              : 'bg-[#0f3460] text-gray-300 hover:bg-[#1a4a7a]'}`}
+              ? 'bg-[var(--accent)] text-white'
+              : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:bg-[var(--bg-button-hover)]'}`}
         >
           {t.icon}
         </button>
       ))}
 
-      <hr className="w-8 border-[#0f3460] my-1" />
+      <hr className="w-8 border-[var(--border-color)] my-1" />
 
       {/* Grid toggle */}
       <button
@@ -59,23 +59,23 @@ export default function Toolbar({
         onClick={onToggleGrid}
         className={`w-10 h-10 rounded text-xs font-bold transition-colors
           ${showGrid
-            ? 'bg-[#e94560] text-white'
-            : 'bg-[#0f3460] text-gray-300 hover:bg-[#1a4a7a]'}`}
+            ? 'bg-[var(--accent)] text-white'
+            : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:bg-[var(--bg-button-hover)]'}`}
       >
         ⊞
       </button>
 
-      <hr className="w-8 border-[#0f3460] my-1" />
+      <hr className="w-8 border-[var(--border-color)] my-1" />
 
       {/* Zoom */}
-      <span className="text-xs text-gray-400">{zoom}×</span>
+      <span className="text-xs text-[var(--text-muted)]">{zoom}×</span>
       <input
         type="range"
         min={1}
         max={64}
         value={zoom}
         onChange={e => onZoomChange(Number(e.target.value))}
-        className="w-10 accent-[#e94560]"
+        className="w-10 accent-[var(--accent)]"
         style={{ writingMode: 'vertical-lr', direction: 'rtl', height: 80 }}
         title={`Zoom: ${zoom}×`}
       />

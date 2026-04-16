@@ -155,7 +155,7 @@ export default function App() {
           onZoomChange={z => dispatch({ type: 'SET_ZOOM', zoom: z })}
         />
 
-        <div className="flex-1 overflow-auto bg-[#0d1117]">
+        <div className="flex-1 overflow-auto bg-[var(--canvas-bg)]">
           <div className="min-w-full min-h-full flex items-center justify-center p-4">
           {state.canvasSize ? (
             <PixelCanvas
@@ -171,7 +171,7 @@ export default function App() {
               onSnapshot={forceHistoryRefresh}
             />
           ) : (
-            <p className="text-gray-600 text-sm">Create a new canvas to start painting.</p>
+            <p className="text-[var(--text-subtle)] text-sm">Create a new canvas to start painting.</p>
           )}
           </div>
         </div>

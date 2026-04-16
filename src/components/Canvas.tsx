@@ -52,7 +52,8 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
     const ctx = grid.getContext('2d')!;
     ctx.clearRect(0, 0, grid.width, grid.height);
     if (!showGrid) return;
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim() || 'rgba(255,255,255,0.12)';
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= width; x++) {
       ctx.beginPath();
@@ -162,7 +163,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
 
   return (
     <div
-      className="relative border border-[#0f3460] shadow-lg"
+      className="relative border border-[var(--border-color)] shadow-lg"
       style={{ width: displayW, height: displayH }}
     >
       {/* Checkerboard background to show transparency */}
@@ -170,7 +171,7 @@ const PixelCanvas = forwardRef<CanvasHandle, Props>(function PixelCanvas(
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'repeating-conic-gradient(#555 0% 25%, #888 0% 50%)',
+            'repeating-conic-gradient(var(--checker-1) 0% 25%, var(--checker-2) 0% 50%)',
           backgroundSize: `${zoom * 2}px ${zoom * 2}px`,
         }}
       />

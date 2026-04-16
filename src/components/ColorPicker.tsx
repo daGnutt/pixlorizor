@@ -16,22 +16,22 @@ export default function ColorPicker({
   onRemoveFromPalette,
 }: Props) {
   return (
-    <div className="flex flex-col gap-3 p-3 bg-[#16213e] border-t border-[#0f3460]">
+    <div className="flex flex-col gap-3 p-3 bg-[var(--bg-panel)] border-t border-[var(--border-color)]">
       {/* Active color */}
       <div className="flex items-center gap-3">
-        <label className="text-xs text-gray-400 shrink-0">Color</label>
+        <label className="text-xs text-[var(--text-muted)] shrink-0">Color</label>
         <input
           type="color"
           value={activeColor}
           onChange={e => onColorChange(e.target.value)}
-          className="w-10 h-10 rounded cursor-pointer border-2 border-[#0f3460] bg-transparent"
+          className="w-10 h-10 rounded cursor-pointer border-2 border-[var(--border-color)] bg-transparent"
           title="Active color"
         />
-        <span className="text-xs font-mono text-gray-300 uppercase">{activeColor}</span>
+        <span className="text-xs font-mono text-[var(--text-primary)] uppercase">{activeColor}</span>
         <button
           onClick={onAddToPalette}
           title="Add to palette"
-          className="ml-auto text-xs px-2 py-1 bg-[#0f3460] hover:bg-[#1a4a7a] rounded text-gray-300 transition-colors"
+          className="ml-auto text-xs px-2 py-1 bg-[var(--bg-button)] hover:bg-[var(--bg-button-hover)] rounded text-[var(--text-muted)] transition-colors"
         >
           + Palette
         </button>
@@ -47,13 +47,13 @@ export default function ColorPicker({
                 onClick={() => onPaletteColorClick(color)}
                 onContextMenu={e => { e.preventDefault(); onRemoveFromPalette(i); }}
                 className={`w-7 h-7 rounded border-2 transition-colors block
-                  ${color === activeColor ? 'border-white' : 'border-transparent hover:border-gray-400'}`}
+                  ${color === activeColor ? 'border-white' : 'border-transparent hover:border-[var(--text-muted)]'}`}
                 style={{ background: color }}
               />
               <button
                 title="Remove from palette"
                 onClick={() => onRemoveFromPalette(i)}
-                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-700 text-white text-[9px] leading-none items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--bg-button)] text-[var(--text-primary)] text-[9px] leading-none items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
               >
                 ×
               </button>
@@ -62,7 +62,7 @@ export default function ColorPicker({
         </div>
       )}
       {palette.length === 0 && (
-        <p className="text-xs text-gray-600">No palette colors yet. Add some!</p>
+        <p className="text-xs text-[var(--text-subtle)]">No palette colors yet. Add some!</p>
       )}
     </div>
   );
